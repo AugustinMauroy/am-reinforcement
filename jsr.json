@@ -4,7 +4,6 @@
   "description": "A simple reinforcement learning implementation for JavaScript and TypeScript.",
   "version": "0.0.1",
   "license": "MIT",
-  "exports": "./src/mod.ts",
   "publish": {
     "include": [
       "LICENSE",

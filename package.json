@@ -8,11 +8,14 @@
     "pre-commit": "biome check ./ --write && node --run test && node --run types:check",
     "test": "node --test './**/*.test.ts'",
     "test:coverage": "node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=./coverage.lcov --test-reporter=spec --test-reporter-destination=stdout --test-coverage-include='src/**/*' --test-coverage-exclude='**/*.test.ts' './**/*.test.ts'",
-    "types:check": "tsc --noEmit"
+    "types:check": "tsc --noEmit && echo 'Type check passed!'"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.14",
     "@types/node": "^25.6.0",
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@am/neuralnetwork": "npm:@jsr/am__neuralnetwork@^1.0.1"
   }
 }

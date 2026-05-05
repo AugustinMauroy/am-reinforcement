@@ -6,7 +6,7 @@ import { SeededRNG } from "../utils/random.ts";
 /**
  * Configuration for QLearningAgent.
  */
-export interface QLearningConfig {
+export interface QLearningConfig<S> {
 	/** Learning rate (0 < alpha <= 1) */
 	alpha: number;
 	/** Discount factor (0 <= gamma <= 1) */
@@ -16,7 +16,7 @@ export interface QLearningConfig {
 	/** Optional: RNG seed for reproducibility */
 	seed?: number;
 	/** Optional: Function to serialize state for Q-table key */
-	stateSerializer?: (state: unknown) => string;
+	stateSerializer?: (state: S) => string;
 }
 
 /**
@@ -38,9 +38,9 @@ export class QLearningAgent<S, A> implements Agent<S, A> {
 	private stateSerializer: (state: S) => string;
 	private actionSerializer: (action: A) => string;
 	private actions: A[];
-	private config: QLearningConfig;
+	private config: QLearningConfig<S>;
 
-	constructor(actions: A[], config: QLearningConfig) {
+	constructor(actions: A[], config: QLearningConfig<S>) {
 		this.actions = actions;
 		this.config = config;
 		if (config.alpha <= 0 || config.alpha > 1) {

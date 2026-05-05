@@ -80,15 +80,15 @@ async function main() {
 	await train({
 		env,
 		agent,
-		episodes: 100,
-		maxStepsPerEpisode: 100,
+		episodes: 200,
+		maxStepsPerEpisode: 200,
 		onEpisodeEnd: (episode, totalReward) => {
 			rewards.push(totalReward);
 
 			if ((episode + 1) % 10 === 0) {
 				const avgReward = rewards.slice(-10).reduce((a, b) => a + b, 0) / 10;
 				console.log(
-					`Episode ${episode + 1}/100 | Reward: ${totalReward.toFixed(2)} | Avg (last 10): ${avgReward.toFixed(2)} | Epsilon: ${agent.getEpsilon().toFixed(3)}`,
+					`Episode ${episode + 1}/200 | Reward: ${totalReward.toFixed(2)} | Avg (last 10): ${avgReward.toFixed(2)} | Epsilon: ${agent.getEpsilon().toFixed(3)}`,
 				);
 			}
 		},

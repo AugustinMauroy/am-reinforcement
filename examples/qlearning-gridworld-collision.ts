@@ -1,10 +1,11 @@
 /**
  * Q-Learning example: Simple GridWorld
  *
- * A 2D grid where an agent learns to reach a goal.
+ * A 2D grid where an agent learns to reach a goal while avoiding obstacles.
  * State: (x, y) coordinates
  * Actions: up, down, left, right
- * Reward: +10 for reaching goal, -1 for each step
+ * Reward: +10 for reaching goal, -1 for each step, -1 for hitting obstacle
+ * This example demonstrates how to implement a Q-Learning agent in a gridworld environment with obstacles.
  */
 
 import { QLearningAgent } from "../src/algorithms/qlearning.ts";
@@ -20,13 +21,34 @@ type GridState = Position;
 
 type GridAction = "up" | "down" | "left" | "right";
 
-/**
- * Simple gridworld environment
- */
-class GridWorldEnv implements Environment<GridState, GridAction> {
+
+class GridWorldWithObstacles implements Environment<GridState, GridAction> {
 	private agent: Position;
-	private readonly goal: Position = { x: 9, y: 9 }; // Fixed goal position
-	private readonly gridSize = 10; // Reduced grid size
+
+	private readonly gridSize = 10;
+
+	private readonly goal: Position = { x: 9, y: 9 };
+
+	// Define obstacles
+	private readonly obstacles: Set<string> = new Set([
+		"3,3",
+		"3,4",
+		"3,5",
+		"4,5",
+		"5,5",
+		"6,5",
+		"7,5",
+		"7,4",
+		"7,3",
+	]); // simple wall with a gap
+
+	private serialize(pos: Position): string {
+		return `${pos.x},${pos.y}`;
+	}
+
+	private isObstacle(pos: Position): boolean {
+		return this.obstacles.has(this.serialize(pos));
+	}
 
 	reset(): GridState {
 		this.agent = { x: 0, y: 0 };
@@ -34,30 +56,56 @@ class GridWorldEnv implements Environment<GridState, GridAction> {
 	}
 
 	step(action: GridAction): StepResult<GridState> {
-		// Apply action
+		const next = { ...this.agent };
+
+		// Attempt move
 		switch (action) {
 			case "up":
-				this.agent.y = Math.max(0, this.agent.y - 1);
+				next.y -= 1;
 				break;
 			case "down":
-				this.agent.y = Math.min(this.gridSize - 1, this.agent.y + 1);
+				next.y += 1;
 				break;
 			case "left":
-				this.agent.x = Math.max(0, this.agent.x - 1);
+				next.x -= 1;
 				break;
 			case "right":
-				this.agent.x = Math.min(this.gridSize - 1, this.agent.x + 1);
+				next.x += 1;
+				break;
 		}
 
-		// Check if reached goal
+		// Clamp to grid
+		next.x = Math.max(0, Math.min(this.gridSize - 1, next.x));
+		next.y = Math.max(0, Math.min(this.gridSize - 1, next.y));
+
+		let reward = -0.1; // base step cost
+
+		// Handle obstacle collision
+		if (this.isObstacle(next)) {
+			// Stay in place
+			next.x = this.agent.x;
+			next.y = this.agent.y;
+
+			reward -= 1; // penalty for hitting obstacle
+		}
+
+		// Move agent
+		this.agent = next;
+
+		// Check goal
 		const reachedGoal =
 			this.agent.x === this.goal.x && this.agent.y === this.goal.y;
 
-		// Reward shaping: Encourage progress toward the goal
+		// Distance shaping
 		const distanceToGoal =
 			Math.abs(this.agent.x - this.goal.x) +
 			Math.abs(this.agent.y - this.goal.y);
-		const reward = reachedGoal ? 10 : -0.1 - 0.01 * distanceToGoal;
+
+		if (reachedGoal) {
+			reward = 10;
+		} else {
+			reward -= 0.01 * distanceToGoal;
+		}
 
 		return {
 			state: { ...this.agent },
@@ -67,10 +115,11 @@ class GridWorldEnv implements Environment<GridState, GridAction> {
 	}
 }
 
+
 async function main() {
 	console.log("🎮 Q-Learning on GridWorld\n");
 
-	const env = new GridWorldEnv();
+	const env = new GridWorldWithObstacles();
 
 	const agent = new QLearningAgent<GridState, GridAction>(
 		["up", "down", "left", "right"],

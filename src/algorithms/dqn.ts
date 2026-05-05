@@ -3,27 +3,28 @@ import type { Transition } from "../types/transition.ts";
 import type { IReplayBuffer } from "../memory/replayBuffer.ts";
 import { EpsilonGreedyPolicy } from "../policies/epsilonGreedy.ts";
 import { SeededRNG } from "../utils/random.ts";
+import { Model } from "@am/neuralnetwork";
 
 /**
- * Interface for neural network models used by DQN.
- * This abstracts away the specific implementation of @am/neuralnetwork.
+ * Wrapper interface for neural network models used by DQN.
+ * Adapts @am/neuralnetwork.Model to DQN's training interface.
  */
 export interface NeuralNetworkModel {
 	/**
-	 * Forward pass: predict Q-values for actions given a state.
-	 *
-	 * @param state - Input state (typically a vector or tensor)
-	 * @returns Array of Q-values, one per action
-	 */
-	predict(state: unknown): number[] | Promise<number[]>;
-
-	/**
-	 * Compute gradients and update weights.
+	 * Forward pass: predict Q-values for actions given states.
 	 *
 	 * @param states - Batch of input states
-	 * @param targets - Batch of target Q-values (same structure as output)
+	 * @returns 2D array of Q-values (batch_size x num_actions)
 	 */
-	train(states: unknown[], targets: number[][]): void | Promise<void>;
+	predict(states: number[][]): number[][];
+
+	/**
+	 * Train on a batch of states and targets (single epoch).
+	 *
+	 * @param states - Batch of input states
+	 * @param targets - Batch of target Q-values
+	 */
+	train(states: number[][], targets: number[][]): Promise<void>;
 
 	/**
 	 * Create a deep copy of this model (for target network).
@@ -65,6 +66,51 @@ export interface DQNConfig {
 
 	/** Optional: Action list for epsilon-greedy policy */
 	actions?: unknown[];
+}
+
+/**
+ * Creates a DQN-compatible neural network wrapper from @am/neuralnetwork.Model.
+ *
+ * Example usage:
+ * ```typescript
+ * import { Model, Dense, ReLU, MeanSquaredError, Adam } from "@am/neuralnetwork";
+ *
+ * const model = new Model();
+ * model.addLayer(new Dense(4, 128));
+ * model.addLayer(new ReLU());
+ * model.addLayer(new Dense(128, 2)); // 2 actions
+ * model.compile(new Adam(0.001), new MeanSquaredError(), []);
+ *
+ * const qNetwork = createDQNModelAdapter(model);
+ * ```
+ */
+export function createDQNModelAdapter(model: Model): NeuralNetworkModel {
+	return {
+		predict(states: number[][]): number[][] {
+			return model.predict(states);
+		},
+
+		async train(states: number[][], targets: number[][]): Promise<void> {
+			// Train for 1 epoch with batch size equal to sample size
+			await model.fit(states, targets, 1, states.length);
+		},
+
+		clone(): NeuralNetworkModel {
+			const newModel = Model.load(model.save());
+			return createDQNModelAdapter(newModel);
+		},
+
+		serialize(): string {
+			return model.save();
+		},
+
+		deserialize(data: string): void {
+			const loadedModel = Model.load(data);
+			// Copy state from loaded model to current model
+			// Note: This requires the loaded model to replace the current one's internals
+			Object.assign(model, loadedModel);
+		},
+	};
 }
 
 /**
@@ -147,19 +193,23 @@ export class DQNAgent<S, A> implements Agent<S, A> {
 	}
 
 	/**
-	 * Get Q-values for a state using the online network.
+	 * Get Q-values for a single state using the online network.
 	 */
 	private async getQValues(state: S): Promise<number[]> {
 		const stateVector = this.stateSerializer(state);
-		return Promise.resolve(this.qNetwork.predict(stateVector));
+		const batch = [stateVector];
+		const qValuesBatch = this.qNetwork.predict(batch);
+		return qValuesBatch[0];
 	}
 
 	/**
-	 * Get Q-values for a state using the target network.
+	 * Get Q-values for a single state using the target network.
 	 */
 	private async getTargetQValues(state: S): Promise<number[]> {
 		const stateVector = this.stateSerializer(state);
-		return Promise.resolve(this.targetNetwork.predict(stateVector));
+		const batch = [stateVector];
+		const qValuesBatch = this.targetNetwork.predict(batch);
+		return qValuesBatch[0];
 	}
 
 	/**

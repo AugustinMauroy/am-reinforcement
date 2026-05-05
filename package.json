@@ -14,5 +14,8 @@
     "@biomejs/biome": "2.4.14",
     "@types/node": "^25.6.0",
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@am/neuralnetwork": "npm:@jsr/am__neuralnetwork@^1.0.1"
   }
 }

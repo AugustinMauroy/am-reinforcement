@@ -21,7 +21,6 @@ type GridState = Position;
 
 type GridAction = "up" | "down" | "left" | "right";
 
-
 class GridWorldWithObstacles implements Environment<GridState, GridAction> {
 	private agent: Position;
 
@@ -114,7 +113,6 @@ class GridWorldWithObstacles implements Environment<GridState, GridAction> {
 		};
 	}
 }
-
 
 async function main() {
 	console.log("🎮 Q-Learning on GridWorld\n");

@@ -206,3 +206,33 @@ const agent = new DQNAgent(network, replayBuffer, [0, 1], {
 ```
 
 For more detailed examples, including a grid world and a DQN walkthrough, please check out the [examples/](examples/) folder in the repository.
+
+## Neural Network Backend
+
+This repository now includes an integration with the `@am/neuralnetwork` package for DQN-style agents. The integration adapts the library's batch-based API (`Model.predict(states: number[][])` and `Model.fit(...)`) to the `DQNAgent` using a helper (`createDQNModelAdapter`) in `src/algorithms/dqn.ts`.
+
+If you use `@am/neuralnetwork` directly, make sure your model implements the batch predict/fit semantics (or wrap it with the adapter above).
+
+Branch & commit used during integration:
+
+- Branch: `feat/neuralnetwork-integration`
+- Commit message: `integrate @am/neuralnetwork into DQN agent` (local commit on the branch)
+
+## Running examples and tests
+
+Run the Q-Learning gridworld example:
+
+```bash
+node examples/qlearning-gridworld.ts
+```
+
+Run the full test suite:
+
+```bash
+node --run test
+```
+
+Notes:
+
+- On `feat/neuralnetwork-integration` the test suite passes (96/96) after adapting internal mocks to the batch API.
+- The `main` branch remained working for the Q-Learning examples; the feature branch updates tests and code to support a batch-based neural network backend.

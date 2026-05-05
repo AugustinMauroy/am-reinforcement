@@ -172,17 +172,17 @@ console.log(agent.getQTable());
 
 For neural-network based agents, implement the `NeuralNetworkModel` interface and pair it with a replay buffer:
 
-```typescript } from "@am/reinforcement/algorithms";
+```typescript
 import { ReplayBuffer } from "@am/reinforcement/memory";
-import type { NeuralNetworkModel } from "@am/reinforcement/algorithms;
+import type { NeuralNetworkModel } from "@am/reinforcement/algorithms";
 import type { NeuralNetworkModel } from "@am/reinforcement";
 
 const network: NeuralNetworkModel = {
-  predict(state) {
-    return [0.1, 0.9];
+  predict(states: number[][]): number[][] {
+    return states.map(() => [0.1, 0.9]);
   },
-  train(states, targets) {
-    // Update the network weights here.
+  train(states: number[][], targets: number[][]): void {
+    // Update the network weights here based on batch inputs.
   },
   clone() {
     return this;
@@ -212,11 +212,6 @@ For more detailed examples, including a grid world and a DQN walkthrough, please
 This repository now includes an integration with the `@am/neuralnetwork` package for DQN-style agents. The integration adapts the library's batch-based API (`Model.predict(states: number[][])` and `Model.fit(...)`) to the `DQNAgent` using a helper (`createDQNModelAdapter`) in `src/algorithms/dqn.ts`.
 
 If you use `@am/neuralnetwork` directly, make sure your model implements the batch predict/fit semantics (or wrap it with the adapter above).
-
-Branch & commit used during integration:
-
-- Branch: `feat/neuralnetwork-integration`
-- Commit message: `integrate @am/neuralnetwork into DQN agent` (local commit on the branch)
 
 ## Running examples and tests
 

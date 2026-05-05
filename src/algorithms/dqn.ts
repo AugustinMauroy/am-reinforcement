@@ -85,30 +85,24 @@ export interface DQNConfig {
  * ```
  */
 export function createDQNModelAdapter(model: Model): NeuralNetworkModel {
+	let innerModel = model;
 	return {
 		predict(states: number[][]): number[][] {
-			return model.predict(states);
+			return innerModel.predict(states);
 		},
-
 		async train(states: number[][], targets: number[][]): Promise<void> {
 			// Train for 1 epoch with batch size equal to sample size
-			await model.fit(states, targets, 1, states.length);
+			await innerModel.fit(states, targets, 1, states.length);
 		},
-
 		clone(): NeuralNetworkModel {
-			const newModel = Model.load(model.save());
+			const newModel = Model.load(innerModel.save());
 			return createDQNModelAdapter(newModel);
 		},
-
 		serialize(): string {
-			return model.save();
+			return innerModel.save();
 		},
-
 		deserialize(data: string): void {
-			const loadedModel = Model.load(data);
-			// Copy state from loaded model to current model
-			// Note: This requires the loaded model to replace the current one's internals
-			Object.assign(model, loadedModel);
+			innerModel = Model.load(data);
 		},
 	};
 }
@@ -203,16 +197,6 @@ export class DQNAgent<S, A> implements Agent<S, A> {
 	}
 
 	/**
-	 * Get Q-values for a single state using the target network.
-	 */
-	private async getTargetQValues(state: S): Promise<number[]> {
-		const stateVector = this.stateSerializer(state);
-		const batch = [stateVector];
-		const qValuesBatch = this.targetNetwork.predict(batch);
-		return qValuesBatch[0];
-	}
-
-	/**
 	 * Get the greedy action for a state.
 	 */
 	private async greedyAction(state: S): Promise<A> {
@@ -256,15 +240,23 @@ export class DQNAgent<S, A> implements Agent<S, A> {
 
 		// Prepare batch data
 		const states: number[][] = [];
-		const targets: number[][] = [];
+		const nextStates: number[][] = [];
 
 		for (const t of batch) {
-			const stateVector = this.stateSerializer(t.state);
-			states.push(stateVector);
+			states.push(this.stateSerializer(t.state));
+			nextStates.push(this.stateSerializer(t.nextState));
+		}
 
-			// Current Q-values for this state
-			const currentQValues = await this.getQValues(t.state);
-			const target = [...currentQValues];
+		// Batch forward passes for efficiency
+		const currentQValuesBatch = this.qNetwork.predict(states);
+		const nextQValuesBatch = this.targetNetwork.predict(nextStates);
+
+		// Prepare targets
+		const targets: number[][] = [];
+
+		for (let i = 0; i < batch.length; i++) {
+			const t = batch[i];
+			const target = [...currentQValuesBatch[i]];
 
 			// Find action index
 			const actionIdx = this.actions.findIndex(
@@ -278,8 +270,7 @@ export class DQNAgent<S, A> implements Agent<S, A> {
 			// Compute target using target network
 			let targetValue = t.reward;
 			if (!t.done) {
-				const nextQValues = await this.getTargetQValues(t.nextState);
-				const maxNextQ = Math.max(...nextQValues);
+				const maxNextQ = Math.max(...nextQValuesBatch[i]);
 				targetValue += this.config.gamma * maxNextQ;
 			}
 

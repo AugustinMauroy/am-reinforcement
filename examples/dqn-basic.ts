@@ -7,114 +7,14 @@
  * Reward: 1 if close to 0, -1 for each step away
  */
 
-import { DQNAgent } from "../src/algorithms/dqn.ts";
+import { DQNAgent, createDQNModelAdapter } from "../src/algorithms/dqn.ts";
 import { ReplayBuffer } from "../src/memory/replayBuffer.ts";
 import { train } from "../src/core/trainer.ts";
 import type { Environment, StepResult } from "../src/core/environment.ts";
-import type { NeuralNetworkModel } from "../src/algorithms/dqn.ts";
-
-/**
- * Simple mock neural network for demonstration.
- * In practice, this would be replaced with @am/neuralnetwork.
- */
-class SimpleNeuralNetwork implements NeuralNetworkModel {
-	private weights: number[][][]; // [layers][neurons][input_weights]
-
-	constructor(inputSize: number, hiddenSize: number, outputSize: number) {
-		// Initialize random weights
-		this.weights = [
-			this.randomMatrix(hiddenSize, inputSize),
-			this.randomMatrix(outputSize, hiddenSize),
-		];
-	}
-
-	private randomMatrix(rows: number, cols: number): number[][] {
-		const matrix: number[][] = [];
-		for (let i = 0; i < rows; i++) {
-			const row: number[] = [];
-			for (let j = 0; j < cols; j++) {
-				row.push((Math.random() - 0.5) * 2); // [-1, 1]
-			}
-			matrix.push(row);
-		}
-		return matrix;
-	}
-
-	private relu(x: number): number {
-		return Math.max(0, x);
-	}
-
-	predict(state: unknown): number[] {
-		const input = state as number[];
-
-		// First layer: input -> hidden (with ReLU)
-		const hidden: number[] = [];
-		for (let i = 0; i < this.weights[0].length; i++) {
-			let sum = 0;
-			for (let j = 0; j < input.length; j++) {
-				sum += this.weights[0][i][j] * input[j];
-			}
-			hidden.push(this.relu(sum));
-		}
-
-		// Output layer: hidden -> output (linear)
-		const output: number[] = [];
-		for (let i = 0; i < this.weights[1].length; i++) {
-			let sum = 0;
-			for (let j = 0; j < hidden.length; j++) {
-				sum += this.weights[1][i][j] * hidden[j];
-			}
-			output.push(sum);
-		}
-
-		return output;
-	}
-
-	train(states: unknown[], targets: number[][]): void {
-		// Simplified gradient descent update
-		// In practice, this would use proper backpropagation
-		const learningRate = 0.01;
-
-		for (let s = 0; s < states.length; s++) {
-			const input = states[s] as number[];
-			const target = targets[s];
-			const prediction = this.predict(input);
-
-			// Compute output layer gradients
-			const outputGradients: number[] = [];
-			for (let i = 0; i < prediction.length; i++) {
-				outputGradients.push((prediction[i] - target[i]) / states.length);
-			}
-
-			// Simple weight update (not real backprop, just demo)
-			for (let i = 0; i < this.weights[1].length; i++) {
-				for (let j = 0; j < this.weights[1][i].length; j++) {
-					this.weights[1][i][j] -= learningRate * outputGradients[i];
-				}
-			}
-		}
-	}
-
-	clone(): SimpleNeuralNetwork {
-		const copy = new SimpleNeuralNetwork(
-			this.weights[0][0].length,
-			this.weights[0].length,
-			this.weights[1].length,
-		);
-		copy.weights = this.weights.map((layer) =>
-			layer.map((neuron) => [...neuron]),
-		);
-		return copy;
-	}
-
-	serialize(): string {
-		return JSON.stringify(this.weights);
-	}
-
-	deserialize(data: string): void {
-		this.weights = JSON.parse(data);
-	}
-}
+import { Model } from "@am/neuralnetwork";
+import { Dense, ReLU } from "@am/neuralnetwork/layers";
+import { MeanSquaredError } from "@am/neuralnetwork/losses";
+import { Adam } from "@am/neuralnetwork/optimizes";
 
 /**
  * Simple 1D balance environment
@@ -138,8 +38,8 @@ class BalanceEnv implements Environment<number, number> {
 		const distance = Math.abs(this.position);
 		const reward = distance < 0.5 ? 1 : -distance * 0.5;
 
-		// Episode done if too far from center
-		const done = Math.abs(this.position) > 2;
+		// Episode done when the position reaches the boundary
+		const done = Math.abs(this.position) >= 2;
 
 		return {
 			state: this.position,
@@ -154,21 +54,24 @@ async function main() {
 	console.log("🤖 DQN Agent Training on Balance Environment\n");
 
 	const env = new BalanceEnv();
-	const model = new SimpleNeuralNetwork(
-		1, // input: 1D position
-		16, // hidden layer: 16 neurons
-		3, // output: 3 actions
-	);
+	const model = new Model();
+	model.addLayer(new Dense(1, 16));
+	model.addLayer(new ReLU());
+	model.addLayer(new Dense(16, 3));
+	model.compile(new Adam(0.001), new MeanSquaredError(), []);
 
-	const agent = new DQNAgent(
-		model,
-		new ReplayBuffer(1000),
+	const qNetwork = createDQNModelAdapter(model);
+
+	const agent = new DQNAgent<number, number>(
+		qNetwork,
+		new ReplayBuffer<number, number>(1000),
 		[0, 1, 2], // 3 actions: left, stay, right
 		{
 			gamma: 0.99,
-			epsilon: 0.1,
+			epsilon: 1,
 			batchSize: 32,
 			targetUpdateFrequency: 100,
+			seed: 42,
 		},
 	);
 

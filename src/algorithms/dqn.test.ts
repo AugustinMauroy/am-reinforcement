@@ -3,9 +3,17 @@ import assert from "node:assert";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DQNAgent, type NeuralNetworkModel } from "./dqn.ts";
+import {
+	DQNAgent,
+	createDQNModelAdapter,
+	type NeuralNetworkModel,
+} from "./dqn.ts";
 import { ReplayBuffer } from "../memory/replayBuffer.ts";
 import type { Transition } from "../types/transition.ts";
+import { Model } from "@am/neuralnetwork";
+import { Dense, ReLU } from "@am/neuralnetwork/layers";
+import { MeanSquaredError } from "@am/neuralnetwork/losses";
+import { Adam } from "@am/neuralnetwork/optimizes";
 
 class MockNN implements NeuralNetworkModel {
 	private weights: number[] = [0.1, 0.2, 0.3];
@@ -357,6 +365,36 @@ describe("DQNAgent", () => {
 		});
 
 		assert.strictEqual(cloneCalls, 2);
+	});
+
+	it("should adapt @am/neuralnetwork Model with createDQNModelAdapter", async () => {
+		const model = new Model();
+		model.addLayer(new Dense(1, 4));
+		model.addLayer(new ReLU());
+		model.addLayer(new Dense(4, 2));
+		model.compile(new Adam(0.001), new MeanSquaredError(), []);
+
+		const adapter = createDQNModelAdapter(model);
+		const states = [[1], [2]];
+
+		const predictions = adapter.predict(states);
+		assert.strictEqual(predictions.length, 2);
+		assert.strictEqual(predictions[0].length, 2);
+
+		await adapter.train(states, [
+			[0, 1],
+			[1, 0],
+		]);
+
+		const serialized = adapter.serialize();
+		assert.strictEqual(typeof serialized, "string");
+
+		const clone = adapter.clone();
+		assert.strictEqual(clone.predict(states).length, 2);
+
+		const restored = createDQNModelAdapter(new Model());
+		restored.deserialize(serialized);
+		assert.strictEqual(restored.predict(states).length, 2);
 	});
 
 	it("should exercise the internal policy callbacks", () => {

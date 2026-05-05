@@ -32,14 +32,11 @@ Using `@am/reinforcement` involves these main steps:
 1. **Import the necessary types and classes**:
 
 	```typescript
-	import {
-	  DQNAgent,
-	  QLearningAgent,
-	  ReplayBuffer,
-	  SeededRNG,
-	  train,
-	  runEpisode,
-	} from "@am/reinforcement";
+	import { QLearningAgent, DQNAgent } from "@am/reinforcement/algorithms";
+	import { ReplayBuffer } from "@am/reinforcement/memory";
+	import { EpsilonGreedyPolicy } from "@am/reinforcement/policies";
+	import { SeededRNG } from "@am/reinforcement/utils";
+	import type { Environment, StepResult } from "@am/reinforcement/core";
 	```
 
 2. **Define your environment**:
@@ -49,7 +46,7 @@ Using `@am/reinforcement` involves these main steps:
     * `done`: whether the episode has ended.
 
 	```typescript
-	import type { Environment, StepResult } from "@am/reinforcement";
+	import type { Environment, StepResult } from "@am/reinforcement/core";
 
 	class GridWorld implements Environment<number, "left" | "right"> {
 	  reset(): number {
@@ -72,6 +69,9 @@ Using `@am/reinforcement` involves these main steps:
 3. **Instantiate the agent**: Choose `QLearningAgent` for tabular problems or `DQNAgent` for function approximation.
 
 	```typescript
+	import { QLearningAgent, DQNAgent } from "@am/reinforcement/algorithms";
+	import { ReplayBuffer } from "@am/reinforcement/memory";
+
 	const qAgent = new QLearningAgent<number, "left" | "right">(["left", "right"], {
 	  alpha: 0.1,
 	  gamma: 0.99,
@@ -91,6 +91,8 @@ Using `@am/reinforcement` involves these main steps:
 4. **Train the agent**: Use `train()` to run full episodes and update the agent.
 
 	```typescript
+	import { train } from "@am/reinforcement/core";
+
 	await train({
 	  env: new GridWorld(),
 	  agent: qAgent,
@@ -102,6 +104,8 @@ Using `@am/reinforcement` involves these main steps:
 5. **Run an episode without learning**: Use `runEpisode()` to evaluate the trained agent.
 
 	```typescript
+	import { runEpisode } from "@am/reinforcement/core";
+
 	const [reward, steps] = await runEpisode(new GridWorld(), qAgent, 50);
 	console.log({ reward, steps });
 	```
@@ -121,8 +125,9 @@ Using `@am/reinforcement` involves these main steps:
 Here is a minimal example showing how to train a `QLearningAgent` on a small environment:
 
 ```typescript
-import { QLearningAgent, train } from "@am/reinforcement";
-import type { Environment, StepResult } from "@am/reinforcement";
+import { QLearningAgent } from "@am/reinforcement/algorithms";
+import { train } from "@am/reinforcement/core";
+import type { Environment, StepResult } from "@am/reinforcement/core";
 
 class OneDimensionalWalk implements Environment<number, "left" | "right"> {
   private position = 0;
@@ -167,8 +172,9 @@ console.log(agent.getQTable());
 
 For neural-network based agents, implement the `NeuralNetworkModel` interface and pair it with a replay buffer:
 
-```typescript
-import { DQNAgent, ReplayBuffer } from "@am/reinforcement";
+```typescript } from "@am/reinforcement/algorithms";
+import { ReplayBuffer } from "@am/reinforcement/memory";
+import type { NeuralNetworkModel } from "@am/reinforcement/algorithms;
 import type { NeuralNetworkModel } from "@am/reinforcement";
 
 const network: NeuralNetworkModel = {

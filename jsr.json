@@ -2,9 +2,14 @@
   "$schema": "https://jsr.io/schema/config-file.v1.json",
   "name": "@am/reinforcement",
   "description": "A simple reinforcement learning implementation for JavaScript and TypeScript.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
-  "exports": "./src/mod.ts",
+  "exports": {
+    "./algorithms": "./src/algorithms/mod.ts",
+    "./memory": "./src/memory/mod.ts",
+    "./policies": "./src/policies/mod.ts",
+    "./utils": "./src/utils/mod.ts"
+  },
   "publish": {
     "include": [
       "LICENSE",

@@ -14,11 +14,11 @@ class MockNN implements NeuralNetworkModel {
 		return [...this.weights];
 	}
 
-	predict(): number[] {
-		return [1.0, 2.0, 3.0];
+	predict(states: number[][]): number[][] {
+		return states.map(() => [1.0, 2.0, 3.0]);
 	}
 
-	async train(): Promise<void> {
+	async train(_states: number[][], _targets: number[][]): Promise<void> {
 		// Mock training
 	}
 
@@ -155,9 +155,10 @@ describe("DQNAgent", () => {
 		const trainedStates: unknown[][] = [];
 
 		const nn: NeuralNetworkModel = {
-			predict: () => [1, 2],
-			train: (states: unknown[]) => {
-				trainedStates.push(...(states as Array<unknown[]>));
+			predict: (states: number[][]) => states.map(() => [1, 2]),
+			train: (states: number[][]) => {
+				trainedStates.push(...states);
+				return Promise.resolve();
 			},
 			clone: function () {
 				return this;
@@ -193,8 +194,8 @@ describe("DQNAgent", () => {
 		let trainCallCount = 0;
 
 		const nn: NeuralNetworkModel = {
-			predict: () => [1, 2],
-			train: () => {
+			predict: (states: number[][]) => states.map(() => [1, 2]),
+			train: async () => {
 				trainCallCount++;
 			},
 			clone: function () {
@@ -285,8 +286,8 @@ describe("DQNAgent", () => {
 		}
 
 		const nn: NeuralNetworkModel = {
-			predict: () => [1, 2],
-			train: () => {},
+			predict: (states: number[][]) => states.map(() => [1, 2]),
+			train: async () => {},
 			clone: function () {
 				return this;
 			},
@@ -318,12 +319,14 @@ describe("DQNAgent", () => {
 		let cloneCalls = 0;
 
 		const nn: NeuralNetworkModel = {
-			predict: (stateVector: number[]) => {
-				if (stateVector[0] === 1) {
-					return [4, 1];
-				}
+			predict: (states: number[][]) => {
+				return states.map((stateVector) => {
+					if (stateVector[0] === 1) {
+						return [4, 1];
+					}
 
-				return [2, 6];
+					return [2, 6];
+				});
 			},
 			train: async () => {},
 			clone: function () {
@@ -530,9 +533,10 @@ describe("DQNAgent", () => {
 		let targetValue: number | null = null;
 
 		const nn: NeuralNetworkModel = {
-			predict: () => [0, 0],
+			predict: (states: number[][]) => states.map(() => [0, 0]),
 			train: (_states: unknown[], targets: number[][]) => {
 				targetValue = targets[0][0];
+				return Promise.resolve();
 			},
 			clone: function () {
 				return this;
@@ -568,9 +572,10 @@ describe("DQNAgent", () => {
 		let targetValue: number | null = null;
 
 		const nn: NeuralNetworkModel = {
-			predict: () => [5, 10],
+			predict: (states: number[][]) => states.map(() => [5, 10]),
 			train: (_states: unknown[], targets: number[][]) => {
 				targetValue = targets[0][0];
+				return Promise.resolve();
 			},
 			clone: function () {
 				return this;
